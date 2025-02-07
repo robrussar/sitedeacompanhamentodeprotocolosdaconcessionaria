@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chamados Encerrados - Claro/Embratel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            display: inline-block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .filter {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chamados Encerrados - Claro/Embratel</h1>
+
+    <div class="filter">
+        <label for="filtroData">Filtrar por Data de Encerramento:</label>
+        <input type="date" id="filtroData">
+    </div>
+
+    <div class="filter">
+        <label for="filtroCircuito">Filtrar por Circuito:</label>
+        <input type="text" id="filtroCircuito">
+    </div>
+
+    <table id="tabela">
+        <tr>
+            <th>Circuito</th>
+            <th>Agendamento</th>
+            <th>Informações</th>
+            <th>Data de Inserção</th>
+            <th>Data de Encerramento</th>
+            <th>Motivo de Encerramento</th>
+        </tr>
+    </table>
+
+    <script>
+        function updateTable() {
+            var table = document.getElementById('tabela');
+            var savedData = JSON.parse(localStorage.getItem('closedData')) || [];
+
+            var tableHTML = '<tr><th>Circuito</th><th>Agendamento</th><th>Informações</th><th>Data de Inserção</th><th>Data de Encerramento</th><th>Motivo de Encerramento</th></tr>';
+
+            savedData.forEach(function(data) {
+                tableHTML += '<tr>';
+                tableHTML += '<td>' + data.circuito + '</td>';
+                tableHTML += '<td>' + data.agendamento + '</td>';
+                tableHTML += '<td>' + data.informacoes + '</td>';
+                tableHTML += '<td>' + data.dataInsercao + '</td>';
+                tableHTML += '<td>' + data.dataEncerramento + '</td>';
+                tableHTML += '<td>' + data.motivoEncerramento + '</td>';
+                tableHTML += '</tr>';
+            });
+
+            table.innerHTML = tableHTML;
+        }
+
+        window.onload = function() {
+            updateTable();
+
+            document.getElementById('filtroData').addEventListener('input', function() {
+                var filtroData = this.value;
+                var table = document.getElementById('tabela');
+                var rows = table.getElementsByTagName('tr');
+                for (var i = 1; i < rows.length; i++) {
+                    var dataEncerramento = rows[i].getElementsByTagName('td')[4].textContent;
+                    if (filtroData !== '' && dataEncerramento !== filtroData) {
+                        rows[i].style.display = 'none';
+                    } else {
+                        rows[i].style.display = '';
+                    }
+                }
+            });
+
+            document.getElementById('filtroCircuito').addEventListener('input', function() {
+                var filtroCircuito = this.value.toUpperCase();
+                var table = document.getElementById('tabela');
+                var rows = table.getElementsByTagName('tr');
+                for (var i = 1; i < rows.length; i++) {
+                    var circuito = rows[i].getElementsByTagName('td')[0].textContent.toUpperCase();
+                    if (filtroCircuito !== '' && !circuito.includes(filtroCircuito)) {
+                        rows[i].style.display = 'none';
+                    } else {
+                        rows[i].style.display = '';
+                    }
+                }
+            });
+        };
+
+        function saveClosedData(data) {
+            var savedData = JSON.parse(localStorage.getItem('closedData')) || [];
+            savedData.push(data);
+            localStorage.setItem('closedData', JSON.stringify(savedData));
+            updateTable(); // Atualizar a tabela após salvar os dados
+        }
+    </script>
+</body>
+</html>
