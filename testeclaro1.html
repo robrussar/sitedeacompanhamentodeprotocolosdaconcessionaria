@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claro/Embratel - Chamados Concessionárias Tecban</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            display: inline-block;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            float: right;
+            margin-right: 20px;
+        }
+        .button-secondary {
+            background-color: #f44336;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .pick-list {
+            width: 100%;
+        }
+        #historico {
+            margin-top: 20px;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fefefe;
+            border: 1px solid #888;
+            padding: 20px;
+            z-index: 1;
+            box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.5);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .status-box {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <h1>Claro/Embratel</h1>
+    <button class="button" onclick="openPopup()">Inserir Chamado</button>
+    <a href="chamadosencerradosclaro.html" class="button">Chamados Encerrados</a>
+
+    <div id="popupForm" class="popup">
+        <span class="close" onclick="closePopup()">&times;</span>
+        <h2>Formulário de Inserção</h2>
+        <form onsubmit="return saveData()">
+            <label for="status">Status:</label>
+            <select id="status" class="pick-list" required>
+                <option value="amarelo">Aguardando Validação da Concessionária</option>
+                <option value="laranja">Aguardando confirmação Tecban</option>
+                <option value="verde">Agendado entre as partes</option>
+                <option value="roxo">Aguardando Validação de chamado</option>
+                <option value="azul">Aguardando agendamento da Tecban</option>
+                <option value="cinza">Aguardando rede externa</option>
+            </select><br><br>
+            <label for="circuito">Circuito:</label>
+            <input id="circuito" type="text" oninput="this.value = this.value.toUpperCase();" required><br><br>
+            <label for="agendamento">Agendamento:</label>
+            <input id="agendamento" type="text" placeholder="dd/mm/yyyy hh:mm:ss" required><br><br>
+            <label for="informacoes">Informações:</label>
+            <textarea id="informacoes" rows="4" cols="50" required></textarea><br><br>
+            <input type="submit" value="Salvar">
+        </form>
+    </div>
+
+    <div id="finalizarPopup" class="popup">
+        <span class="close" onclick="closeFinalizarPopup()">&times;</span>
+        <h2>Deseja encerrar chamado:</h2>
+        <label for="motivo">Selecione o motivo:</label>
+        <select id="motivo" class="pick-list" required>
+            <option value="Conjunta Realizada com Sucesso">Conjunta Realizada com Sucesso</option>
+            <option value="Abertura de OS">Abertura de OS</option>
+            <option value="Chamado Cancelado">Chamado Cancelado</option>
+            <option value="Aberto Incorretamente">Aberto Incorretamente</option>
+        </select><br><br>
+        <button class="button" onclick="confirmarEncerramento()">Confirmar</button>
+        <button class="button button-secondary" onclick="closeFinalizarPopup()">Cancelar</button>
+    </div>
+
+    <table id="tabela">
+        <tr>
+            <th>Status</th>
+            <th>Circuito</th>
+            <th>Agendamento</th>
+            <th>Informações</th>
+            <th>Data de Inserção</th>
+            <th>Ações</th>
+        </tr>
+    </table>
+
+    <div id="historico">
+        <h2>Histórico de Inserções</h2>
+        <ul id="historico-lista"></ul>
+    </div>
+
+    <script>
+        var encerrarIndex = -1;
+
+        function openPopup() {
+            document.getElementById('popupForm').style.display = 'block';
+        }
+
+        function closePopup() {
+            document.getElementById('popupForm').style.display = 'none';
+        }
+
+        function openFinalizarPopup(index) {
+            encerrarIndex = index;
+            document.getElementById('finalizarPopup').style.display = 'block';
+        }
+
+        function closeFinalizarPopup() {
+            document.getElementById('finalizarPopup').style.display = 'none';
+        }
+
+        function saveData() {
+            var status = document.getElementById('status').value;
+            var circuito = document.getElementById('circuito').value.toUpperCase();
+            var agendamento = document.getElementById('agendamento').value;
+            var informacoes = document.getElementById('informacoes').value;
+            var dataInsercao = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+            if (!isValidDateTime(agendamento)) {
+                alert('Data e Hora de Agendamento inválidos. Use o formato dd/mm/yyyy hh:mm:ss');
+                return false;
+            }
+
+            var newData = {
+                status: status,
+                circuito: circuito,
+                agendamento: agendamento,
+                informacoes: informacoes,
+                dataInsercao: dataInsercao
+            };
+
+            var savedData = JSON.parse(localStorage.getItem('savedData')) || [];
+            savedData.push(newData);
+            localStorage.setItem('savedData', JSON.stringify(savedData));
+
+            updateTable();
+            updateHistory();
+
+            document.getElementById('popupForm').reset();
+            closePopup();
+            return false;
+        }
+
+        function isValidDateTime(dateTime) {
+            var regex = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})$/;
+            return regex.test(dateTime);
+        }
+
+        function getStatusColor(status) {
+            var colors = {
+                'amarelo': 'yellow',
+                'laranja': 'orange',
+                'verde': 'green',
+                'roxo': 'purple',
+                'azul': 'blue',
+                'cinza': 'gray'
+            };
+            return colors[status] || 'transparent'; // Retorna a cor correspondente ou transparente se não definido
+        }
+
+        function getStatusHtml(status) {
+            var statusText = {
+                amarelo: 'Aguardando Validação da Concessionária',
+                laranja: 'Aguardando confirmação Tecban',
+                verde: 'Agendado entre as partes',
+                roxo: 'Aguardando Validação de chamado',
+                azul: 'Aguardando agendamento da Tecban',
+                cinza: 'Aguardando rede externa'
+            };
+
+            // Aplica a cor retornada por getStatusColor diretamente ao estilo do elemento
+            return '<div class="status-box" style="background-color: ' + getStatusColor(status) + '"></div>' + statusText[status];
+        }
+
+        function updateTable() {
+            var table = document.getElementById('tabela');
+            table.innerHTML = '<tr><th>Status</th><th>Circuito</th><th>Agendamento</th><th>Informações</th><th>Data de Inserção</th><th>Ações</th></tr>';
+
+            var savedData = JSON.parse(localStorage.getItem('savedData')) || [];
+            savedData.forEach(function(data, index) {
+                var row = table.insertRow(-1);
+                var cells = [getStatusHtml(data.status), data.circuito, data.agendamento, data.informacoes, data.dataInsercao];
+                cells.forEach(function(cellData, cellIndex) {
+                    var cell = row.insertCell(-1);
+                    cell.innerHTML = cellData;
+                });
+
+                var actionCell = row.insertCell(-1);
+                var editButton = document.createElement('button');
+                editButton.textContent = 'Editar';
+                editButton.onclick = function() { editData(index); };
+                actionCell.appendChild(editButton);
+
+                var finalizeButton = document.createElement('button');
+                finalizeButton.textContent = 'Finalizar';
+                finalizeButton.onclick = function() { openFinalizarPopup(index); };
+                actionCell.appendChild(finalizeButton);
+            });
+        }
+
+        function editData(index) {
+            var savedData = JSON.parse(localStorage.getItem('savedData')) || [];
+            var data = savedData[index];
+
+            document.getElementById('status').value = data.status;
+            document.getElementById('circuito').value = data.circuito;
+            document.getElementById('agendamento').value = data.agendamento;
+            document.getElementById('informacoes').value = data.informacoes;
+
+            openPopup();
+            document.getElementById('popupForm').onsubmit = function() {
+                data.status = document.getElementById('status').value;
+                data.circuito = document.getElementById('circuito').value.toUpperCase();
+                data.agendamento = document.getElementById('agendamento').value;
+                data.informacoes = document.getElementById('informacoes').value;
+
+                if (!isValidDateTime(data.agendamento)) {
+                    alert('Data e Hora de Agendamento inválidos. Use o formato dd/mm/yyyy hh:mm:ss');
+                    return false;
+                }
+
+                savedData[index] = data;
+                localStorage.setItem('savedData', JSON.stringify(savedData));
+                updateTable();
+                updateHistory();
+                closePopup();
+                return false;
+            };
+            }
+
+            function confirmarEncerramento() {
+                var savedData = JSON.parse(localStorage.getItem('savedData')) || [];
+                var data = savedData[encerrarIndex];
+                var motivo = document.getElementById('motivo').value;
+                var dataEncerramento = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            
+                var encerradoData = {
+                    circuito: data.circuito,
+                    agendamento: data.agendamento,
+                    informacoes: data.informacoes,
+                    dataInsercao: data.dataInsercao,
+                    dataEncerramento: dataEncerramento,
+                    motivoEncerramento: motivo
+                };
+
+                var closedData = JSON.parse(localStorage.getItem('closedData')) || [];
+                closedData.push(encerradoData);
+                localStorage.setItem('closedData', JSON.stringify(closedData));
+
+                savedData.splice(encerrarIndex, 1);
+                localStorage.setItem('savedData', JSON.stringify(savedData));
+
+                updateTable();
+                closeFinalizarPopup();
+                        }
+
+            function updateHistory() {
+                var historicoLista = document.getElementById('historico-lista');
+                historicoLista.innerHTML = '';
+                var savedData = JSON.parse(localStorage.getItem('savedData')) || [];
+                savedData.forEach(function(data) {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = JSON.stringify(data);
+                    historicoLista.appendChild(listItem);
+                });
+            }
+
+            window.onload = function() {
+                updateTable();
+                updateHistory();
+                
+            };
+        </script>
+    </body>
+    </html>
